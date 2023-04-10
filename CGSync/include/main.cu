@@ -3,16 +3,84 @@
 #include <stdio.h>
 #include "gtest/gtest.h"
 
-__global__ void exec_kernel()
+#include <thrust/copy.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+#include <thrust/sequence.h>
+
+#include "helper.h"
+
+__global__ void my_kernel(const int* d_in, int* d_out, const int size)
 {
-    printf("\n I am thread %d from exec_kernel\n", threadIdx.x);
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    assert(tid < size);
+    d_out[tid] = d_in[size - 1 - tid];
 }
 
 TEST(Test, exe)
 {
-    exec_kernel<<<1, 1>>>();
-    auto err = cudaDeviceSynchronize();
-    EXPECT_EQ(err, cudaSuccess);    
+    int dev                = 0;
+    int supportsCoopLaunch = 0;
+    CUDA_ERROR(cudaDeviceGetAttribute(
+        &supportsCoopLaunch, cudaDevAttrCooperativeLaunch, dev));
+
+    int          numBlocksPerSm  = 0;
+    const int    numThreads      = 256;
+    size_t       dynamicSMemSize = 0;
+    cudaStream_t stream          = NULL;
+    int          arr_size        = 0;
+
+    if (supportsCoopLaunch != 0) {
+        cudaDeviceProp deviceProp;
+        CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, dev));
+        CUDA_ERROR(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+            &numBlocksPerSm, my_kernel, numThreads, dynamicSMemSize));
+
+        dim3 dimBlock(numThreads, 1, 1);
+        dim3 dimGrid(deviceProp.multiProcessorCount * numBlocksPerSm, 1, 1);
+
+        arr_size = dimGrid.x * dimBlock.x;
+        thrust::device_vector<int> d_in(arr_size);
+        thrust::device_vector<int> d_out(arr_size);
+
+        thrust::host_vector<int> h_in(arr_size);
+        thrust::sequence(h_in.begin(), h_in.end());
+
+
+        thrust::copy(h_in.begin(), h_in.end(), d_in.begin());
+
+        int* d_in_ptr  = d_in.data().get();
+        int* d_out_ptr = d_out.data().get();
+
+        void* kernelArgs[] = {&d_in_ptr, &d_out_ptr, &arr_size};
+
+        CUDA_ERROR(cudaDeviceSynchronize());
+
+        CUDATimer timer;
+        timer.start();
+        for (int d = 0; d < 1000; ++d) {
+            CUDA_ERROR(cudaLaunchCooperativeKernel((void*)my_kernel,
+                                                   dimGrid,
+                                                   dimBlock,
+                                                   kernelArgs,
+                                                   dynamicSMemSize,
+                                                   stream));
+        }
+        timer.stop();
+
+        CUDA_ERROR(cudaDeviceSynchronize());
+
+        thrust::host_vector<int> h_out(arr_size);
+        thrust::copy(d_out.begin(), d_out.end(), h_out.begin());
+        CUDA_ERROR(cudaDeviceSynchronize());
+
+        for (int i = 0; i < h_out.size(); ++i) {
+            EXPECT_EQ(h_out[i], arr_size - 1 - i);
+        }
+
+        std::cout << "Baseline took= " << timer.elapsed_millis() << " (ms)"
+                  << std::endl;
+    }
 }
 
 int main(int argc, char** argv)
