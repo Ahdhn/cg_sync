@@ -1,4 +1,5 @@
-# CGSync [![Windows](https://github.com/Ahdhn/CGSync/actions/workflows/Windows.yml/badge.svg)](https://github.com/Ahdhn/CGSync/actions/workflows/Windows.yml) [![Ubuntu](https://github.com/Ahdhn/CGSync/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/Ahdhn/CGSync/actions/workflows/Ubuntu.yml)
+# CGSync [![Windows](https://github.com/Ahdhn/cg_sync/actions/workflows/Windows.yml/badge.svg)](https://github.com/Ahdhn/cg_sync/actions/workflows/Windows.yml) [![Ubuntu](https://github.com/Ahdhn/cg_sync/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/Ahdhn/cg_sync/actions/workflows/Ubuntu.yml)
+
 My template for starting a new CUDA project using CMake on Windows (Visual Studio) or Linux (gcc, clang). The template also includes minimal YAML scripts for CI using Github Actions on both Windows (Visual Studio 2019) and Linux (Ubuntu). 
 
 
