@@ -114,7 +114,7 @@ TEST(Test, SingleRound)
     int supportsCoopLaunch = 0;
     CUDA_ERROR(cudaDeviceGetAttribute(
         &supportsCoopLaunch, cudaDevAttrCooperativeLaunch, dev));
-    
+
 
     auto printt = [](auto d, bool end = false) {
         std::cout.fill(' ');
@@ -122,14 +122,14 @@ TEST(Test, SingleRound)
         if (end) {
             std::cout << std::endl;
         }
-                  
     };
-        
+
     printt("Threads");
     printt("Blocks");
+    printt("Size");
     printt("Baseline (ms)");
     printt("CGSync (ms)", true);
-    
+
 
     std::vector<int> threads{32, 64, 128, 256, 512, 1024};
     for (auto numThreads : threads) {
@@ -181,9 +181,9 @@ TEST(Test, SingleRound)
 
             printt(dimBlock.x);
             printt(dimGrid.x);
+            printt(arr_size);
             printt(baseline_ms);
             printt(cg_sync_ms, true);
-                        
         }
     }
 }
