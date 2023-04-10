@@ -144,7 +144,7 @@ TEST(Test, SingleRound)
             cudaDeviceProp deviceProp;
             CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, dev));
             CUDA_ERROR(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-                &numBlocksPerSm, baseline_kernel, numThreads, dynamicSMemSize));
+                &numBlocksPerSm, cg_sync_kernel, numThreads, dynamicSMemSize));
 
             dim3 dimBlock(numThreads, 1, 1);
             dim3 dimGrid(deviceProp.multiProcessorCount * numBlocksPerSm, 1, 1);
