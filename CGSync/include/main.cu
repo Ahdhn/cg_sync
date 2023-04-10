@@ -8,13 +8,27 @@
 #include <thrust/host_vector.h>
 #include <thrust/sequence.h>
 
+#include <cooperative_groups.h>
+
 #include "helper.h"
 
-__global__ void my_kernel(const int* d_in, int* d_out, const int size)
+__global__ void baseline_kernel(const int* d_in, int* d_out, const int size)
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     assert(tid < size);
     d_out[tid] = d_in[size - 1 - tid];
+}
+
+__global__ void cg_sync_kernel(int* d_in, const int size)
+{
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    assert(tid < size);
+    int in = d_in[tid];
+
+    cooperative_groups::grid_group grid = cooperative_groups::this_grid();
+    grid.sync();
+
+    d_in[size - 1 - tid] = in;
 }
 
 TEST(Test, exe)
@@ -34,7 +48,7 @@ TEST(Test, exe)
         cudaDeviceProp deviceProp;
         CUDA_ERROR(cudaGetDeviceProperties(&deviceProp, dev));
         CUDA_ERROR(cudaOccupancyMaxActiveBlocksPerMultiprocessor(
-            &numBlocksPerSm, my_kernel, numThreads, dynamicSMemSize));
+            &numBlocksPerSm, baseline_kernel, numThreads, dynamicSMemSize));
 
         dim3 dimBlock(numThreads, 1, 1);
         dim3 dimGrid(deviceProp.multiProcessorCount * numBlocksPerSm, 1, 1);
@@ -59,7 +73,7 @@ TEST(Test, exe)
         CUDATimer timer;
         timer.start();
         for (int d = 0; d < 1000; ++d) {
-            CUDA_ERROR(cudaLaunchCooperativeKernel((void*)my_kernel,
+            CUDA_ERROR(cudaLaunchCooperativeKernel((void*)baseline_kernel,
                                                    dimGrid,
                                                    dimBlock,
                                                    kernelArgs,
